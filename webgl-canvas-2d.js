@@ -79,7 +79,7 @@ const ColorKeywords = { 'aliceblue': 0xF0F8FF, 'antiquewhite': 0xFAEBD7, 'aqua':
   'violet': 0xEE82EE, 'wheat': 0xF5DEB3, 'white': 0xFFFFFF, 'whitesmoke': 0xF5F5F5, 'yellow': 0xFFFF00, 'yellowgreen': 0x9ACD32 };
 
 
-function fromHex(hex) {
+function fromInt(hex) {
   return [
     (hex >> 16 & 255) / 255,
     (hex >> 8 & 255) / 255,
@@ -295,14 +295,15 @@ void main() {
     }
 
     this.texturesByImage.set(this.whiteTexture, this.createColorTexture255([255, 255, 255, 255]));
+    this.reset();
   }
   reset() {
     const {gl} = this;
     this.matrixStack.reset();
     this.state = {
-      fillStyle = 'black',
-      fillColor = [0, 0, 0, 1],
-      globalAlpha = 1,
+      fillStyle: 'black',
+      fillColor: [0, 0, 0, 1],
+      globalAlpha: 1,
     };
     this.stack = [];
   }
@@ -334,17 +335,17 @@ void main() {
    ]);
   }
   get fillStyle() {
-    return this.state._fillStyle;
+    return this.state.fillStyle;
   }
   set fillStyle(v) {
-    this.state._fillStyle = v;
-    this.state._fillColor = cssToColor(v);
+    this.state.fillStyle = v;
+    this.state.fillColor = cssToColor(v);
   }
   get globalAlpha() {
-    return this.state._globalAlpha;
+    return this.state.globalAlpha;
   }
   set globalAlpha(v) {
-    this.state._globalAlpha = v;
+    this.state.globalAlpha = v;
   }
   clearRect(x, y, width, height) {
     const {gl} = this;
@@ -353,7 +354,7 @@ void main() {
     gl.enable(gl.BLEND);
   }
   fillRect(x, y, width, height) {
-    this.fillRectImpl(x, y, width, height, this.state._fillColor);
+    this.fillRectImpl(x, y, width, height, this.state.fillColor);
   }
   fillRectImpl(x, y, width, height, color) {
     this.drawImageImpl(color, this.whiteTexture, x, y, width, height)
@@ -433,7 +434,7 @@ void main() {
     twgl.setUniforms(programInfo, {
       u_matrix: matrix,
       u_textureMatrix: texMatrix,
-      color: [color[0], color[1], color[2], color[3] * this.state._globalAlpha],
+      color: [color[0], color[1], color[2], color[3] * this.state.globalAlpha],
       texture: tex,
     });
     twgl.drawBufferInfo(gl, bufferInfo);
