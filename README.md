@@ -4,13 +4,13 @@ a minimal implementation of the canvas 2D API through WebGL.
 
 This is not intended to actually work. It's just something for fun
 
-The only API calls supported are
+The only API currently supported are
 
 ```
 clearRect
 fillRect
 drawImage
-filStyle
+fillStyle
 globalAlpha
 save
 restore
@@ -63,7 +63,7 @@ You can also use the shim which makes it create `WebGLCanvas2DRenderingContext`s
 Of course that means you can't create a normal 2D context, only this limited context.
 
 ```
-<script src="../webgl-canvas-2d-shim.js"></script>
+<script src="webgl-canvas-2d-shim.js"></script>
 const ctx = someCanvas.getContext('2d');   // this is a WebGLCanvas2DRenderingContext
 ```
 
