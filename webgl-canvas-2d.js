@@ -236,6 +236,9 @@ class WebGLCanvas2DRenderingContext {
     const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true});
     this.gl = gl;
 
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
     const vs = `
 attribute vec2 position;
 
@@ -245,9 +248,10 @@ uniform mat3 u_textureMatrix;
 varying vec2 v_texcoord;
 
 void main() {
-   gl_Position = vec4((u_matrix * vec3(position, 1)).xy, 0, 1);
-   // using position for texcoord since we know position is a unit square
-   v_texcoord = (u_textureMatrix * vec3(position, 1)).xy;
+  gl_Position = vec4((u_matrix * vec3(position, 1)).xy, 0, 1);
+
+  // using position for texcoord since we know position is a unit square
+  v_texcoord = (u_textureMatrix * vec3(position, 1)).xy;
 }
 `;
     const fs = `
@@ -259,7 +263,8 @@ uniform sampler2D texture;
 uniform vec4 color;
 
 void main() {
-   gl_FragColor = texture2D(texture, v_texcoord) * color;
+  gl_FragColor = texture2D(texture, v_texcoord) * color;
+  gl_FragColor.rgb *= gl_FragColor.a;
 }
 `;
     this.programInfo = twgl.createProgramInfo(gl, [vs, fs]);
@@ -283,26 +288,43 @@ void main() {
     this.translate = this.matrixStack.translate.bind(this.matrixStack);
     this.rotate = this.matrixStack.rotate.bind(this.matrixStack);
     this.scale = this.matrixStack.scale.bind(this.matrixStack);
-    this.save = this.matrixStack.save.bind(this.matrixStack);
-    this.restore = this.matrixStack.restore.bind(this.matrixStack);
-    this._fillStyle = 'black';
-    this._fillColor = [0, 0, 0, 1];
     this.texturesByImage = new Map();
     this.whiteTexture = {
       width: 1,
       height: 1,
     }
+
     this.texturesByImage.set(this.whiteTexture, this.createColorTexture255([255, 255, 255, 255]));
   }
   reset() {
     const {gl} = this;
     this.matrixStack.reset();
+    this.state = {
+      fillStyle = 'black',
+      fillColor = [0, 0, 0, 1],
+      globalAlpha = 1,
+    };
+    this.stack = [];
+  }
+  save() {
+    this.matrixStack.save();
+    const newState = Object.assign({}, this.state);
+    this.stack.push(this.state)
+    this.state = newState;
+  }
+  restore() {
+    this.matrixStack.restore();
+    this.state = this.stack.pop();
   }
   resize(width, height) {
     const {canvas, gl} = this;
     canvas.width = width;
     canvas.height = height;
-    gl.viewport(0, 0, width, height);
+    this.updateSize();
+  }
+  updateSize() {
+    const {gl} = this;
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   }
   setTransform(m1, m2, m3, m4, m5, m6) {
     this.matrixStack.setCurrentMatrix([
@@ -312,17 +334,26 @@ void main() {
    ]);
   }
   get fillStyle() {
-    return this._fillStyle;
+    return this.state._fillStyle;
   }
   set fillStyle(v) {
-    this._fillStyle = v;
-    this._fillColor = cssToColor(v);
+    this.state._fillStyle = v;
+    this.state._fillColor = cssToColor(v);
+  }
+  get globalAlpha() {
+    return this.state._globalAlpha;
+  }
+  set globalAlpha(v) {
+    this.state._globalAlpha = v;
   }
   clearRect(x, y, width, height) {
+    const {gl} = this;
+    gl.disable(gl.BLEND);
     this.fillRectImpl(x, y, width, height, [0, 0, 0, 0]);
+    gl.enable(gl.BLEND);
   }
   fillRect(x, y, width, height) {
-    this.fillRectImpl(x, y, width, height, this._fillColor);
+    this.fillRectImpl(x, y, width, height, this.state._fillColor);
   }
   fillRectImpl(x, y, width, height, color) {
     this.drawImageImpl(color, this.whiteTexture, x, y, width, height)
@@ -402,7 +433,7 @@ void main() {
     twgl.setUniforms(programInfo, {
       u_matrix: matrix,
       u_textureMatrix: texMatrix,
-      color: color,
+      color: [color[0], color[1], color[2], color[3] * this.state._globalAlpha],
       texture: tex,
     });
     twgl.drawBufferInfo(gl, bufferInfo);
