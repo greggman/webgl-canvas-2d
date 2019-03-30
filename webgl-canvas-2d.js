@@ -1,3 +1,26 @@
+/*
+
+Copyright 2019 Gregg Tavares
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+*/
 (function() {
 class MatrixStack {
   constructor() {
@@ -229,7 +252,7 @@ function fromHSL(h, s, l) {
   l = clamp(l, 0, 1);
 
   if (s === 0) {
-    return [l, l, l]
+    return [l, l, l];
   } else {
     const p = l <= 0.5 ? l * (1 + s) : l + s - (l * s);
     const q = (2 * l) - p;
@@ -243,7 +266,7 @@ function fromHSL(h, s, l) {
 }
 
 function from255To1(s) {
-  return Math.min(255, parseInt(s, 10)) / 255
+  return Math.min(255, parseInt(s, 10)) / 255;
 }
 
 function from100To1(s) {
@@ -258,6 +281,11 @@ function doubleHexTo1(hex, n) {
   return parseInt(hex.charAt(n) + hex.charAt(n + 1), 16) / 255;
 }
 
+function parseAlpha(string) {
+  if (string === undefined) return 1;
+  return parseFloat(string);
+}
+
 const rgbHslRE = /^((?:rgb|hsl)a?)\(\s*([^\)]*)\)/;
 const rgbRE = /^(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*([0-9]*\.?[0-9]+)\s*)?$/;
 const rgbPercentRE = /^(\d+)\%\s*,\s*(\d+)\%\s*,\s*(\d+)\%\s*(,\s*([0-9]*\.?[0-9]+)\s*)?$/;
@@ -265,75 +293,80 @@ const hslRE = /^([0-9]*\.?[0-9]+)\s*,\s*(\d+)\%\s*,\s*(\d+)\%\s*(,\s*([0-9]*\.?[
 
 function cssToColor(style) {
 
-  function handleAlpha(string) {
-    if (string === undefined) return 1;
-    return parseFloat(string);
-  }
+  const rgbHsl = rgbHslRE.exec(style);
 
-  let m;
-
-  if (m = rgbHslRE.exec(style)) {
+  if (rgbHsl) {
     // rgb / hsl
-
-    let color;
-    const name = m[1];
-    const components = m[2];
+    const name = rgbHsl[1];
+    const components = rgbHsl[2];
 
     switch (name) {
       case 'rgb':
       case 'rgba':
-        if (color = rgbRE.exec(components)) {
-          // rgb(255,0,0) rgba(255,0,0,0.5)
-          return [
-            from255To1(color[1]),
-            from255To1(color[2]),
-            from255To1(color[3]),
-            handleAlpha(color[5]),
-          ];
+        {
+          const color = rgbRE.exec(components);
+          if (color) {
+            // rgb(255,0,0) rgba(255,0,0,0.5)
+            return [
+              from255To1(color[1]),
+              from255To1(color[2]),
+              from255To1(color[3]),
+              parseAlpha(color[5]),
+            ];
+          }
         }
-        if (color = rgbPercentRE.exec(components)) {
-          // rgb(100%,0%,0%) rgba(100%,0%,0%,0.5)
-          return [
-            from100To1(color[1]),
-            from100To1(color[2]),
-            from100To1(color[3]),
-            handleAlpha(color[5]),
-          ];
+        {
+          const color = rgbPercentRE.exec(components);
+          if (color) {
+            // rgb(100%,0%,0%) rgba(100%,0%,0%,0.5)
+            return [
+              from100To1(color[1]),
+              from100To1(color[2]),
+              from100To1(color[3]),
+              parseAlpha(color[5]),
+            ];
+          }
         }
         break;
       case 'hsl':
       case 'hsla':
-        if (color = hslRE.exec(components)) {
-          // hsl(120,50%,50%) hsla(120,50%,50%,0.5)
-          const h = parseFloat(color[1]) / 360;
-          const s = parseInt(color[2], 10) / 100;
-          const l = parseInt(color[3], 10) / 100;
-
-          return [...fromHSL(h, s, l), handleAlpha(color[5])];
+        {
+          const color = hslRE.exec(components);
+          if (color) {
+            // hsl(120,50%,50%) hsla(120,50%,50%,0.5)
+            const h = parseFloat(color[1]) / 360;
+            const s = parseInt(color[2], 10) / 100;
+            const l = parseInt(color[3], 10) / 100;
+  
+            return [...fromHSL(h, s, l), parseAlpha(color[5])];
+          }
         }
         break;
     }
-  } else if (m = /^\#([A-Fa-f0-9]+)$/.exec(style)) {
-    // hex color
-    const hex = m[1];
-    const size = hex.length;
+  } else {
+    const hexMatch = /^\#([A-Fa-f0-9]+)$/.exec(style);
+    if (hexMatch) {
+      // hex color
+      const hex = hexMatch[1];
+      const size = hex.length;
 
-    if (size === 3) {
-      // #ff0
-      return [
-        singleHexTo1(hex, 0),
-        singleHexTo1(hex, 1),
-        singleHexTo1(hex, 2),
-        1,
-      ];
-    } else if (size === 6) {
-      // #ff0000
-      return [
-        doubleHexTo1(hex, 0),
-        doubleHexTo1(hex, 2),
-        doubleHexTo1(hex, 4),
-        1,
-      ];
+      if (size === 3) {
+        // #ff0
+        return [
+          singleHexTo1(hex, 0),
+          singleHexTo1(hex, 1),
+          singleHexTo1(hex, 2),
+          1,
+        ];
+      } else if (size === 6) {
+        // #ff0000
+        return [
+          doubleHexTo1(hex, 0),
+          doubleHexTo1(hex, 2),
+          doubleHexTo1(hex, 4),
+          1,
+        ];
+      }
     }
   }
 
@@ -342,11 +375,11 @@ function cssToColor(style) {
     const hex = colorNames[style];
     if (hex !== undefined) {
       return [...fromInt(hex), 1];
-    } else {
-      // unknown color
-      console.warn('Unknown color ' + style);
     }
   }
+
+  // unknown color
+  console.warn('unknown color:', style);
   return [1, 0, 1, 1];
 }
 
@@ -354,26 +387,6 @@ class WebGLCanvas2DRenderingContext {
   constructor(canvas) {
     this.canvas = canvas;
     canvas.resize = this.resize.bind(this);
-    /*
-    const self = this;
-
-    Object.defineProperties(canvas, {
-      get width() {
-        return this.gl.width;
-      }
-      set width(v) {
-        this.gl.width = v;
-        this.reset();
-      }
-      get height() {
-        return this.gl.width;
-      }
-      set height(v) {
-        this.gl.height = v;
-        this.reset();
-      }
-    });
-    */
 
     const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true});
     this.gl = gl;
